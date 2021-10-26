@@ -1,59 +1,82 @@
-// Copyright 2018 The Flutter team. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_application_1/models/item.dart';
+import 'package:flutter_application_1/providers/item_list_provider.dart';
 
-void main() => runApp(MyApp());
+void main() {
+  runApp(ProviderScope(child: MyApp()));
+}
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-     title: 'Startup Name Generator',
-       home: RandomWords(),
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: Home(),
     );
   }
 }
 
-class RandomWords extends StatefulWidget {
+class Home extends HookWidget {
   @override
-  _RandomWordsState createState() => _RandomWordsState();
-}
+  Widget build(BuildContext context) {
+    final _controller = useTextEditingController();
 
-class _RandomWordsState extends State<RandomWords> {
-  final _suggestions = <WordPair>[];
-  final _biggerFont = const TextStyle(fontSize: 18.0);
-  @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Startup Name Generator'),
-        ),
-        body: _buildSuggestions(),
-      );
-    }
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Todo List"),
+      ),
+      body: Column(
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(labelText: 'Todo...'),
+            onSubmitted: (value) {
+              context.read(itemListProvider.notifier).addItem(
+                    Item(name: value),
+                  );
 
-    Widget _buildSuggestions() {
-      return ListView.builder(
-          padding: const EdgeInsets.all(16.0),
-          itemBuilder: /*1*/ (context, i) {
-            if (i.isOdd) return const Divider(); /*2*/
-
-            final index = i ~/ 2; /*3*/
-            if (index >= _suggestions.length) {
-              _suggestions.addAll(generateWordPairs().take(10)); /*4*/
-            }
-            return _buildRow(_suggestions[index]);
-          });
-    }
-
-    Widget _buildRow(WordPair pair) {
-      return ListTile(
-          title: Text(
-            pair.asPascalCase,
-            style: _biggerFont,
+              _controller.clear();
+            },
           ),
-        );
-    }
+          Expanded(
+            child: Consumer(
+              builder: (context, watch, child) {
+                final itemList = watch(itemListProvider);
+
+                return ListView.builder(
+                  itemCount: itemList.length,
+                  itemBuilder: (context, index) {
+                    final Item item = itemList[index];
+
+                    return Dismissible(
+                      key: ValueKey(item.id),
+                      onDismissed: (direction) {
+                        context
+                            .read(itemListProvider.notifier)
+                            .deleteItem(item);
+                      },
+                      child: CheckboxListTile(
+                        value: item.isDone,
+                        title: Text(item.name),
+                        onChanged: (value) {
+                          context
+                              .read(itemListProvider.notifier)
+                              .updateItem(item..isDone = value ?? false);
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
